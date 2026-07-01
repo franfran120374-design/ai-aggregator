@@ -100,8 +100,11 @@ MODELS: list[ModelConfig] = [
     ModelConfig("gemini", "gemini-2.5-flash-lite", ["contexte_long"], priority=2),
 
     # Généraliste (fallback ultime si tout le reste est à sec)
-    ModelConfig("openrouter", "meta-llama/llama-3.3-70b-instruct:free", ["general"], priority=1),
-    ModelConfig("gemini", "gemini-2.5-flash-lite", ["general"], priority=2),
+    # Groq en premier : c'est le provider le plus fiable/rapide en pratique,
+    # les deux autres subissent régulièrement de la congestion upstream.
+    ModelConfig("groq", "llama-3.3-70b-versatile", ["general"], priority=1),
+    ModelConfig("openrouter", "meta-llama/llama-3.3-70b-instruct:free", ["general"], priority=2),
+    ModelConfig("gemini", "gemini-2.5-flash-lite", ["general"], priority=3),
 
     # --- Premium (payant) : jamais sélectionnés par le classifieur automatique.
     # Utilisables uniquement via un appel explicite (voir router.call_premium).
