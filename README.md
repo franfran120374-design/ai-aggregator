@@ -22,7 +22,23 @@ Clés gratuites :
 uvicorn app.main:app --reload
 ```
 
-## Utiliser
+Puis ouvre `http://127.0.0.1:8000` : interface de chat directement dans le navigateur.
+
+## Accès depuis un autre appareil (téléphone, etc.)
+
+Sur Windows, double-clique `start.bat` : ça lance le serveur **et** un tunnel public
+(Cloudflare Tunnel, gratuit, sans compte) dans deux fenêtres séparées. L'URL publique
+en `https://....trycloudflare.com` s'affiche dans la fenêtre "Tunnel public" — elle
+change à chaque lancement.
+
+Nécessite `tools/cloudflared.exe` (binaire autonome, pas d'installeur) :
+https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
+
+Dès que le serveur est exposé ainsi, définis `APP_ACCESS_TOKEN` dans `.env` (un secret
+au choix) : sans ça, n'importe qui avec le lien peut l'utiliser. Le frontend demande
+ce code une seule fois et le retient sur l'appareil.
+
+## Utiliser (API directe)
 
 ```bash
 curl -X POST localhost:8000/chat -H "Content-Type: application/json" \
