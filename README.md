@@ -44,7 +44,7 @@ Pour qu'un autre service (ex: un backend qui appelle cette API en continu) puiss
 fier sans dépendre de ton PC allumé + tunnel :
 
 1. Sur [render.com](https://render.com) → **New +** → **Web Service** → connecte le repo GitHub `ai-aggregator`
-2. Render détecte Python automatiquement grâce à `runtime.txt`. Configure :
+2. Render détecte Python automatiquement. Configure :
    - **Build Command** : `pip install -r requirements.txt`
    - **Start Command** : `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 3. Dans **Environment**, ajoute les mêmes variables que ton `.env` local :
