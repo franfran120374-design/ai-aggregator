@@ -27,7 +27,7 @@ _PATTERNS: dict[str, list[tuple[re.Pattern, int]]] = {
         (re.compile(r"\b(analyse (les|des|ces)|raisonnement|hypothèse)\b", re.I), 2),
     ],
     "redaction": [
-        (re.compile(r"\b(écris|rédige|rédiger) (un |une |le |la )?(email|mail|lettre|article|post|message)\b", re.I), 4),
+        (re.compile(r"\b([ée]cris|r[ée]dige|r[ée]diger) (un |une |le |la )?(email|mail|lettre|article|post|message)\b", re.I), 4),
         (re.compile(r"\b(lettre de motivation|cv|linkedin|newsletter|communiqué)\b", re.I), 3),
         (re.compile(r"\b(résume en|synthèse courte|paragraphe sur)\b", re.I), 2),
     ],

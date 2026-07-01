@@ -79,32 +79,45 @@ class ModelConfig:
 
 # Table des modèles disponibles, avec leurs forces.
 # L'ordre à l'intérieur d'une catégorie = ordre de préférence (priority croissante).
+# Chaque catégorie a plusieurs candidats répartis sur 3 providers différents :
+# si un backend précis est congestionné (ex: OpenRouter/Venice), la cascade
+# retombe sur un autre provider plutôt que d'échouer entièrement.
 MODELS: list[ModelConfig] = [
     # Rapide / classification / petites tâches
     ModelConfig("groq", "llama-3.1-8b-instant", ["classification", "rapide"], priority=1),
 
     # Code
-    ModelConfig("openrouter", "qwen/qwen3-coder:free", ["code"], priority=1),
-    ModelConfig("groq", "llama-3.3-70b-versatile", ["code", "raisonnement"], priority=2),
+    ModelConfig("groq", "qwen/qwen3-32b", ["code"], priority=1),
+    ModelConfig("openrouter", "qwen/qwen3-coder:free", ["code"], priority=2),
+    ModelConfig("groq", "llama-3.3-70b-versatile", ["code"], priority=3),
+    ModelConfig("openrouter", "openai/gpt-oss-120b:free", ["code"], priority=4),
 
     # Raisonnement / analyse complexe
-    ModelConfig("openrouter", "openai/gpt-oss-120b:free", ["raisonnement"], priority=1),
-    ModelConfig("groq", "llama-3.3-70b-versatile", ["raisonnement"], priority=2),
+    ModelConfig("groq", "openai/gpt-oss-120b", ["raisonnement"], priority=1),
+    ModelConfig("openrouter", "nvidia/nemotron-3-ultra-550b-a55b:free", ["raisonnement"], priority=2),
+    ModelConfig("groq", "llama-3.3-70b-versatile", ["raisonnement"], priority=3),
+    ModelConfig("openrouter", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", ["raisonnement"], priority=4),
 
     # Rédaction / créatif
     ModelConfig("groq", "llama-3.3-70b-versatile", ["redaction", "creatif"], priority=1),
-    ModelConfig("openrouter", "meta-llama/llama-3.3-70b-instruct:free", ["redaction", "creatif"], priority=2),
+    ModelConfig("openrouter", "nousresearch/hermes-3-llama-3.1-405b:free", ["redaction", "creatif"], priority=2),
+    ModelConfig("openrouter", "google/gemma-4-31b-it:free", ["redaction", "creatif"], priority=3),
+    ModelConfig("openrouter", "meta-llama/llama-3.3-70b-instruct:free", ["redaction", "creatif"], priority=4),
 
     # Contexte long / documents volumineux
     ModelConfig("gemini", "gemini-2.5-flash", ["contexte_long"], priority=1),
     ModelConfig("gemini", "gemini-2.5-flash-lite", ["contexte_long"], priority=2),
+    ModelConfig("groq", "meta-llama/llama-4-scout-17b-16e-instruct", ["contexte_long"], priority=3),
+    ModelConfig("openrouter", "nvidia/nemotron-3-ultra-550b-a55b:free", ["contexte_long"], priority=4),
 
     # Généraliste (fallback ultime si tout le reste est à sec)
     # Groq en premier : c'est le provider le plus fiable/rapide en pratique,
     # les deux autres subissent régulièrement de la congestion upstream.
     ModelConfig("groq", "llama-3.3-70b-versatile", ["general"], priority=1),
-    ModelConfig("openrouter", "meta-llama/llama-3.3-70b-instruct:free", ["general"], priority=2),
-    ModelConfig("gemini", "gemini-2.5-flash-lite", ["general"], priority=3),
+    ModelConfig("groq", "openai/gpt-oss-20b", ["general"], priority=2),
+    ModelConfig("openrouter", "meta-llama/llama-3.3-70b-instruct:free", ["general"], priority=3),
+    ModelConfig("openrouter", "nvidia/nemotron-3-nano-30b-a3b:free", ["general"], priority=4),
+    ModelConfig("gemini", "gemini-2.5-flash-lite", ["general"], priority=5),
 
     # --- Premium (payant) : jamais sélectionnés par le classifieur automatique.
     # Utilisables uniquement via un appel explicite (voir router.call_premium).
