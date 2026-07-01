@@ -8,7 +8,11 @@ Endpoints :
     POST /chat    -> {prompt: str}  =>  réponse + métadonnées de routage
     GET  /status  -> état des quotas par provider
 """
+import os
+
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.router import classify_prompt, pick_and_call, call_premium, NoModelAvailable, BudgetExceeded
@@ -17,6 +21,9 @@ from app.budget import status as budget_status
 from app.config import PROVIDERS
 
 app = FastAPI(title="Agrégateur IA", version="0.1.0")
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 class ChatRequest(BaseModel):
@@ -72,4 +79,4 @@ async def status():
 
 @app.get("/")
 async def root():
-    return {"message": "Agrégateur IA en ligne. POST /chat, GET /status."}
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))

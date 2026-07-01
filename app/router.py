@@ -42,6 +42,11 @@ async def pick_and_call(prompt: str, category: str) -> tuple[str, str, str]:
     Ne touche JAMAIS aux providers payants (filtrés explicitement).
     Retourne (provider, model_id, réponse).
     """
+    # Estimation grossière des tokens d'entrée (~4 caractères/token) + marge pour la réponse,
+    # utilisée pour vérifier le quota TPM avant l'appel (pas seulement RPM/RPD).
+    estimated_input = len(prompt) // 4
+    estimated_total = estimated_input + 500
+
     tried = set()
     candidate_lists = [_candidates_for(category)]
     if category != "general":
@@ -55,11 +60,11 @@ async def pick_and_call(prompt: str, category: str) -> tuple[str, str, str]:
             if key in tried:
                 continue
             tried.add(key)
-            if not can_use(m.provider):
+            if not can_use(m.provider, estimated_tokens=estimated_total):
                 continue
             try:
-                content, _usage = await call_model(m.provider, m.model_id, prompt)
-                record_call(m.provider)
+                content, usage = await call_model(m.provider, m.model_id, prompt)
+                record_call(m.provider, tokens=usage["input_tokens"] + usage["output_tokens"])
                 return m.provider, m.model_id, content
             except ProviderError as e:
                 logger.warning("Echec %s/%s: %s", m.provider, m.model_id, e)

@@ -37,8 +37,8 @@ def _today_key() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
-def can_use(provider: str) -> bool:
-    """Vérifie si le provider a encore du quota (RPM + RPD)."""
+def can_use(provider: str, estimated_tokens: int = 0) -> bool:
+    """Vérifie si le provider a encore du quota (RPM + RPD + TPM estimé)."""
     with _lock:
         data = _load()
         entry = data.get(provider, {})
@@ -56,14 +56,21 @@ def can_use(provider: str) -> bool:
         if len(recent) >= cfg.rpm:
             return False
 
+        # TPM : tokens consommés sur les 60 dernières secondes + estimation de l'appel à venir
+        if cfg.tpm is not None:
+            recent_tokens = [t for t in entry.get("minute_tokens", []) if now - t[0] < 60]
+            used = sum(tok for _, tok in recent_tokens)
+            if used + estimated_tokens > cfg.tpm:
+                return False
+
         return True
 
 
-def record_call(provider: str) -> None:
-    """Enregistre un appel réussi (ou tenté) pour ce provider."""
+def record_call(provider: str, tokens: int = 0) -> None:
+    """Enregistre un appel réussi (ou tenté) pour ce provider, avec les tokens réellement consommés."""
     with _lock:
         data = _load()
-        entry = data.setdefault(provider, {"day": {}, "minute_ts": []})
+        entry = data.setdefault(provider, {"day": {}, "minute_ts": [], "minute_tokens": []})
 
         day = _today_key()
         entry["day"][day] = entry["day"].get(day, 0) + 1
@@ -71,6 +78,10 @@ def record_call(provider: str) -> None:
         now = time.time()
         entry["minute_ts"] = [t for t in entry.get("minute_ts", []) if now - t < 60]
         entry["minute_ts"].append(now)
+
+        entry["minute_tokens"] = [t for t in entry.get("minute_tokens", []) if now - t[0] < 60]
+        if tokens:
+            entry["minute_tokens"].append([now, tokens])
 
         # nettoyage : on ne garde pas les jours trop vieux
         entry["day"] = {d: c for d, c in entry["day"].items() if d >= day[:7]}  # garde le mois courant
@@ -90,11 +101,16 @@ def status() -> dict:
             entry = data.get(name, {})
             rpd_used = entry.get("day", {}).get(day, 0)
             rpm_used = len([t for t in entry.get("minute_ts", []) if now - t < 60])
+            tpm_used = sum(
+                tok for ts, tok in entry.get("minute_tokens", []) if now - ts < 60
+            )
             result[name] = {
                 "rpd_used": rpd_used,
                 "rpd_limit": cfg.rpd,
                 "rpm_used": rpm_used,
                 "rpm_limit": cfg.rpm,
+                "tpm_used": tpm_used,
+                "tpm_limit": cfg.tpm,
                 "available": can_use(name),
             }
         return result

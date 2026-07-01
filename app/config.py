@@ -17,6 +17,7 @@ class ProviderConfig:
     api_key_env: str
     rpm: int
     rpd: int
+    tpm: int | None = None  # tokens/minute — None si non publié par le provider
     is_free: bool = True
     # prix par million de tokens (input, output) — uniquement pour les providers payants
     price_per_mtok: tuple[float, float] | None = None
@@ -29,6 +30,7 @@ PROVIDERS: dict[str, ProviderConfig] = {
         api_key_env="GROQ_API_KEY",
         rpm=30,
         rpd=1000,
+        tpm=6_000,
     ),
     "gemini": ProviderConfig(
         name="gemini",
@@ -36,6 +38,7 @@ PROVIDERS: dict[str, ProviderConfig] = {
         api_key_env="GEMINI_API_KEY",
         rpm=10,
         rpd=1500,
+        tpm=250_000,
     ),
     "openrouter": ProviderConfig(
         name="openrouter",
