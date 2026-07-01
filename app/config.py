@@ -5,6 +5,10 @@ Toutes les clés API viennent des variables d'environnement (voir .env.example).
 import os
 from dataclasses import dataclass, field
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 @dataclass
 class ProviderConfig:
@@ -81,7 +85,7 @@ MODELS: list[ModelConfig] = [
     ModelConfig("groq", "llama-3.3-70b-versatile", ["code", "raisonnement"], priority=2),
 
     # Raisonnement / analyse complexe
-    ModelConfig("openrouter", "deepseek/deepseek-r1:free", ["raisonnement"], priority=1),
+    ModelConfig("openrouter", "openai/gpt-oss-120b:free", ["raisonnement"], priority=1),
     ModelConfig("groq", "llama-3.3-70b-versatile", ["raisonnement"], priority=2),
 
     # Rédaction / créatif

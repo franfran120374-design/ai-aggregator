@@ -4,11 +4,15 @@ Coeur de l'agrégateur :
 2. pick_model()      : on prend le meilleur modèle de cette catégorie qui a
                         encore du quota dispo, avec fallback en cascade.
 """
+import logging
+
 from app.config import MODELS, ModelConfig, PROVIDERS
 from app.providers.client import call_model, ProviderError
 from app.quota import can_use, record_call
 from app.local_classifier import classify_local
 from app.budget import can_afford, record_spend, estimate_cost_usd
+
+logger = logging.getLogger(__name__)
 
 
 class NoModelAvailable(Exception):
@@ -57,7 +61,8 @@ async def pick_and_call(prompt: str, category: str) -> tuple[str, str, str]:
                 content, _usage = await call_model(m.provider, m.model_id, prompt)
                 record_call(m.provider)
                 return m.provider, m.model_id, content
-            except ProviderError:
+            except ProviderError as e:
+                logger.warning("Echec %s/%s: %s", m.provider, m.model_id, e)
                 continue
 
     raise NoModelAvailable(

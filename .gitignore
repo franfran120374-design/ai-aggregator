@@ -1,3 +1,4 @@
 data/quota.json
 .env
 __pycache__/
+venv/
