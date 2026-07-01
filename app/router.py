@@ -61,6 +61,7 @@ async def pick_and_call(prompt: str, category: str) -> tuple[str, str, str]:
                 continue
             tried.add(key)
             if not can_use(m.provider, estimated_tokens=estimated_total):
+                logger.info("Quota local insuffisant pour %s/%s, on saute", m.provider, m.model_id)
                 continue
             try:
                 content, usage = await call_model(m.provider, m.model_id, prompt)
