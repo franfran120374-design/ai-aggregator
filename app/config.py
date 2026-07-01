@@ -117,6 +117,10 @@ PREMIUM_CATEGORY = "premium"
 # Modifiable via la variable d'env MAX_MONTHLY_SPEND_USD dans .env
 MAX_MONTHLY_SPEND_USD = float(os.environ.get("MAX_MONTHLY_SPEND_USD", "5.0"))
 
+# Code d'accès partagé, requis dès que le serveur est exposé hors de ta machine
+# (ex: via un tunnel). Si non défini, aucune protection n'est appliquée (usage local uniquement).
+APP_ACCESS_TOKEN = os.environ.get("APP_ACCESS_TOKEN")
+
 
 def get_api_key(provider: str) -> str:
     cfg = PROVIDERS[provider]

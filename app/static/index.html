@@ -158,6 +158,19 @@ const premiumToggle = document.getElementById("premium-toggle");
 const premiumProvider = document.getElementById("premium-provider");
 const statusLine = document.getElementById("status-line");
 
+function getAccessToken() {
+  let token = localStorage.getItem("accessToken");
+  if (!token) {
+    token = window.prompt("Code d'accès :") || "";
+    localStorage.setItem("accessToken", token);
+  }
+  return token;
+}
+
+function authHeaders(extra) {
+  return Object.assign({ "X-Access-Token": getAccessToken() }, extra || {});
+}
+
 function addMessage(role, text, meta) {
   const div = document.createElement("div");
   div.className = "msg " + role;
@@ -207,13 +220,17 @@ form.addEventListener("submit", async (e) => {
   try {
     const resp = await fetch("/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     });
     const data = await resp.json();
     typingEl.classList.remove("typing");
 
-    if (!resp.ok) {
+    if (resp.status === 401) {
+      localStorage.removeItem("accessToken");
+      typingEl.className = "msg error";
+      typingEl.textContent = "Code d'accès invalide. Recharge la page pour le ressaisir.";
+    } else if (!resp.ok) {
       typingEl.className = "msg error";
       typingEl.textContent = data.detail || "Erreur inconnue.";
     } else {
@@ -239,7 +256,11 @@ form.addEventListener("submit", async (e) => {
 
 async function refreshStatus() {
   try {
-    const resp = await fetch("/status");
+    const resp = await fetch("/status", { headers: authHeaders() });
+    if (resp.status === 401) {
+      statusLine.textContent = "code d'accès invalide";
+      return;
+    }
     const data = await resp.json();
     const parts = Object.entries(data.quota)
       .filter(([name, q]) => q.rpd_limit > 0)

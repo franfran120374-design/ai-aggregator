@@ -10,7 +10,7 @@ Endpoints :
 """
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -18,12 +18,18 @@ from pydantic import BaseModel
 from app.router import classify_prompt, pick_and_call, call_premium, NoModelAvailable, BudgetExceeded
 from app.quota import status as quota_status
 from app.budget import status as budget_status
-from app.config import PROVIDERS
+from app.config import PROVIDERS, APP_ACCESS_TOKEN
 
 app = FastAPI(title="Agrégateur IA", version="0.1.0")
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+def require_token(x_access_token: str | None = Header(None)) -> None:
+    """Si APP_ACCESS_TOKEN est défini (usage exposé hors machine locale), vérifie le header."""
+    if APP_ACCESS_TOKEN and x_access_token != APP_ACCESS_TOKEN:
+        raise HTTPException(401, "Code d'accès invalide ou manquant.")
 
 
 class ChatRequest(BaseModel):
@@ -41,7 +47,7 @@ class ChatResponse(BaseModel):
     cost_usd: float | None = None  # renseigné uniquement si premium=True
 
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse, dependencies=[Depends(require_token)])
 async def chat(req: ChatRequest):
     if not req.prompt.strip():
         raise HTTPException(400, "Le prompt est vide.")
@@ -72,7 +78,7 @@ async def chat(req: ChatRequest):
     return ChatResponse(response=result, category=category, provider=provider, model=model_id)
 
 
-@app.get("/status")
+@app.get("/status", dependencies=[Depends(require_token)])
 async def status():
     return {"quota": quota_status(), "budget": budget_status()}
 
