@@ -91,12 +91,14 @@ MODELS: list[ModelConfig] = [
     ModelConfig("openrouter", "qwen/qwen3-coder:free", ["code"], priority=2),
     ModelConfig("groq", "llama-3.3-70b-versatile", ["code"], priority=3),
     ModelConfig("openrouter", "openai/gpt-oss-120b:free", ["code"], priority=4),
+    ModelConfig("openrouter", "cohere/north-mini-code:free", ["code"], priority=5),
 
     # Raisonnement / analyse complexe
     ModelConfig("groq", "openai/gpt-oss-120b", ["raisonnement"], priority=1),
     ModelConfig("openrouter", "nvidia/nemotron-3-ultra-550b-a55b:free", ["raisonnement"], priority=2),
     ModelConfig("groq", "llama-3.3-70b-versatile", ["raisonnement"], priority=3),
     ModelConfig("openrouter", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", ["raisonnement"], priority=4),
+    ModelConfig("openrouter", "nvidia/nemotron-3-super-120b-a12b:free", ["raisonnement"], priority=5),
 
     # Rédaction / créatif
     ModelConfig("groq", "llama-3.3-70b-versatile", ["redaction", "creatif"], priority=1),
@@ -118,6 +120,7 @@ MODELS: list[ModelConfig] = [
     ModelConfig("openrouter", "meta-llama/llama-3.3-70b-instruct:free", ["general"], priority=3),
     ModelConfig("openrouter", "nvidia/nemotron-3-nano-30b-a3b:free", ["general"], priority=4),
     ModelConfig("gemini", "gemini-2.5-flash-lite", ["general"], priority=5),
+    ModelConfig("openrouter", "openai/gpt-oss-20b:free", ["general"], priority=6),
 
     # --- Premium (payant) : jamais sélectionnés par le classifieur automatique.
     # Utilisables uniquement via un appel explicite (voir router.call_premium).
