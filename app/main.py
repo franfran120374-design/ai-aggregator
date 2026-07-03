@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.router import classify_prompt, pick_and_call, call_premium, NoModelAvailable, BudgetExceeded
+from app.team import run_team
 from app.quota import status as quota_status
 from app.budget import status as budget_status
 from app.config import PROVIDERS, APP_ACCESS_TOKEN
@@ -76,6 +77,39 @@ async def chat(req: ChatRequest):
         raise HTTPException(503, str(e))
 
     return ChatResponse(response=result, category=category, provider=provider, model=model_id)
+
+
+class TeamStep(BaseModel):
+    step: str  # "plan", "execution" ou "relecture"
+    provider: str
+    model: str
+
+
+class TeamResponse(BaseModel):
+    response: str  # version finale relue
+    plan: str
+    draft: str
+    steps: list[TeamStep]
+    category: str
+    cost_usd: float  # 0 si tout est passé par le CLI abonnement + les gratuits
+
+
+@app.post("/team", response_model=TeamResponse, dependencies=[Depends(require_token)])
+async def team(req: ChatRequest):
+    """
+    Mode équipe : Claude planifie, un modèle gratuit exécute, Claude relit.
+    Plus lent qu'un /chat simple (3 appels en série) mais nettement meilleur
+    sur les tâches complexes (code, documents structurés, analyses).
+    """
+    if not req.prompt.strip():
+        raise HTTPException(400, "Le prompt est vide.")
+    try:
+        result = await run_team(req.prompt)
+    except NoModelAvailable as e:
+        raise HTTPException(503, str(e))
+    except BudgetExceeded as e:
+        raise HTTPException(402, str(e))
+    return TeamResponse(**result)
 
 
 @app.get("/status", dependencies=[Depends(require_token)])

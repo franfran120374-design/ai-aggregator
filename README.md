@@ -59,6 +59,31 @@ fier sans dépendre de ton PC allumé + tunnel :
   de temps en temps. Sans conséquence grave (juste moins précis sur le tracking de quota
   entre deux redémarrages), pas un problème fonctionnel.
 
+## Mode équipe (plan → exécution → relecture)
+
+Trois modèles collaborent sur la même demande, pour un résultat nettement
+meilleur sur les tâches complexes (code, documents, analyses) :
+
+1. **Plan** — Claude structure la demande en plan d'action
+2. **Exécution** — le meilleur modèle gratuit de la catégorie réalise la tâche
+3. **Relecture** — Claude corrige le brouillon et livre la version finale
+
+Dans l'interface web : coche « Mode équipe ». En API : `POST /team` avec le même
+corps que `/chat`.
+
+Pour les étapes Claude, l'agrégateur choisit automatiquement le moyen le moins
+cher disponible :
+
+- **CLI Claude Code** (`claude -p`) s'il est installé et connecté sur la machine —
+  couvert par l'abonnement Claude Pro/Max, coût zéro. C'est le mode normal en local.
+- **API Anthropic** si `ANTHROPIC_API_KEY` est définie (plafond mensuel respecté) —
+  seul mode possible sur Render, où le CLI n'existe pas.
+- **Meilleur modèle gratuit de raisonnement** en dernier recours (qualité moindre
+  mais toujours fonctionnel).
+
+Compter 1 à 3 minutes par requête (3 appels en série). Variable d'env optionnelle :
+`CLAUDE_CODE_TIMEOUT` (secondes, défaut 240).
+
 ## Utiliser (API directe)
 
 ```bash

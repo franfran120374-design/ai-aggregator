@@ -137,6 +137,7 @@
 
 <div id="composer">
   <div class="options">
+    <label><input type="checkbox" id="team-toggle"> Mode équipe (Claude planifie et relit, un modèle gratuit exécute)</label>
     <label><input type="checkbox" id="premium-toggle"> Mode premium (payant, Claude/GPT)</label>
     <select id="premium-provider">
       <option value="anthropic">Claude</option>
@@ -154,6 +155,7 @@ const messagesEl = document.getElementById("messages");
 const form = document.getElementById("chat-form");
 const promptEl = document.getElementById("prompt");
 const sendBtn = document.getElementById("send-btn");
+const teamToggle = document.getElementById("team-toggle");
 const premiumToggle = document.getElementById("premium-toggle");
 const premiumProvider = document.getElementById("premium-provider");
 const statusLine = document.getElementById("status-line");
@@ -208,17 +210,18 @@ form.addEventListener("submit", async (e) => {
   promptEl.style.height = "auto";
   sendBtn.disabled = true;
 
-  const typingEl = addMessage("bot", "…");
+  const isTeam = teamToggle.checked;
+  const typingEl = addMessage("bot", isTeam ? "L'équipe travaille (plan → exécution → relecture)… ça peut prendre 1 à 3 minutes." : "…");
   typingEl.classList.add("typing");
 
   const body = { prompt: text };
-  if (premiumToggle.checked) {
+  if (!isTeam && premiumToggle.checked) {
     body.premium = true;
     body.premium_provider = premiumProvider.value;
   }
 
   try {
-    const resp = await fetch("/chat", {
+    const resp = await fetch(isTeam ? "/team" : "/chat", {
       method: "POST",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
@@ -235,7 +238,14 @@ form.addEventListener("submit", async (e) => {
       typingEl.textContent = data.detail || "Erreur inconnue.";
     } else {
       typingEl.textContent = data.response;
-      let metaText = `${data.provider} / ${data.model} (${data.category})`;
+      let metaText;
+      if (isTeam) {
+        metaText = data.steps
+          .map((s) => `${s.step}: ${s.provider}${s.model ? " / " + s.model : ""}`)
+          .join(" · ") + ` (${data.category})`;
+      } else {
+        metaText = `${data.provider} / ${data.model} (${data.category})`;
+      }
       if (data.cost_usd !== null && data.cost_usd !== undefined) {
         metaText += ` — $${data.cost_usd.toFixed(4)}`;
       }
