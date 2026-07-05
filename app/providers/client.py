@@ -47,6 +47,18 @@ async def call_model(
         raise ProviderError(provider, resp.status_code, resp.text[:500])
 
     data = resp.json()
+    # Certains providers renvoient un HTTP 200 même en cas d'erreur (quota
+    # dépassé, modèle invalide, contenu filtré...) : le corps ne contient
+    # alors pas "choices". Sans ce garde-fou, ça plantait avec un KeyError
+    # au lieu de basculer sur le modèle suivant via le fallback de pick_and_call.
+    if "choices" not in data or not data["choices"]:
+        detail = data.get("error")
+        if isinstance(detail, dict):
+            detail = detail.get("message", str(data)[:500])
+        elif not detail:
+            detail = str(data)[:500]
+        raise ProviderError(provider, resp.status_code, str(detail)[:500])
+
     content = data["choices"][0]["message"]["content"]
     raw_usage = data.get("usage", {})
     usage = {
