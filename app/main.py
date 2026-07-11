@@ -6,6 +6,8 @@ Lancer avec :
 
 Endpoints :
     POST /chat    -> {prompt: str}  =>  réponse + métadonnées de routage
+                      (provider + model_id optionnels pour forcer un modèle précis)
+    GET  /models  -> liste des modèles gratuits dispo, groupés par catégorie
     GET  /status  -> état des quotas par provider
 """
 import os
@@ -15,13 +17,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from app.router import classify_prompt, pick_and_call, call_premium, NoModelAvailable, BudgetExceeded
+from app.router import classify_prompt, pick_and_call, call_premium, NoModelAvailable, BudgetExceeded, InvalidModel
 from app.team import run_team
 from app.quota import status as quota_status
 from app.budget import status as budget_status
-from app.config import PROVIDERS, APP_ACCESS_TOKEN
+from app.config import MODELS, CATEGORIES, PROVIDERS, APP_ACCESS_TOKEN
 
-app = FastAPI(title="Agrégateur IA", version="0.1.0")
+app = FastAPI(title="Agrégateur IA", version="0.2.0")
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -36,6 +38,8 @@ def require_token(x_access_token: str | None = Header(None)) -> None:
 class ChatRequest(BaseModel):
     prompt: str
     category: str | None = None  # permet de forcer une catégorie manuellement
+    provider: str | None = None  # NEW: force un provider gratuit précis (ex: "groq")
+    model_id: str | None = None  # NEW: force un modèle précis dans ce provider
     premium: bool = False  # active explicitement Claude/GPT (payant)
     premium_provider: str = "anthropic"  # "anthropic" ou "openai"
 
@@ -72,11 +76,36 @@ async def chat(req: ChatRequest):
     category = req.category or await classify_prompt(req.prompt)
 
     try:
-        provider, model_id, result = await pick_and_call(req.prompt, category)
+        provider, model_id, result = await pick_and_call(
+            req.prompt,
+            category,
+            forced_provider=req.provider,
+            forced_model_id=req.model_id,
+        )
+    except InvalidModel as e:
+        raise HTTPException(400, str(e))
     except NoModelAvailable as e:
         raise HTTPException(503, str(e))
 
     return ChatResponse(response=result, category=category, provider=provider, model=model_id)
+
+
+@app.get("/models", dependencies=[Depends(require_token)])
+async def list_models():
+    """Liste des modèles gratuits disponibles, pour construire un sélecteur côté client."""
+    return {
+        "categories": CATEGORIES,
+        "models": [
+            {
+                "provider": m.provider,
+                "model_id": m.model_id,
+                "categories": m.categories,
+                "priority": m.priority,
+            }
+            for m in MODELS
+            if PROVIDERS[m.provider].is_free
+        ],
+    }
 
 
 class TeamStep(BaseModel):
