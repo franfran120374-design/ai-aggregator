@@ -123,8 +123,18 @@
     font-size: 12px;
     color: var(--muted);
     align-items: center;
+    flex-wrap: wrap;
   }
   .options label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  select {
+    background: #1c1f27;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 12px;
+  }
+  select:disabled { opacity: 0.4; }
 </style>
 </head>
 <body>
@@ -143,6 +153,10 @@
       <option value="anthropic">Claude</option>
       <option value="openai">GPT</option>
     </select>
+    <label><input type="checkbox" id="model-toggle"> Choisir le modèle gratuit</label>
+    <select id="model-select" disabled>
+      <option value="">chargement…</option>
+    </select>
   </div>
   <form id="chat-form">
     <textarea id="prompt" placeholder="Écris ton message… (Entrée pour envoyer, Maj+Entrée pour une nouvelle ligne)" rows="1"></textarea>
@@ -158,6 +172,8 @@ const sendBtn = document.getElementById("send-btn");
 const teamToggle = document.getElementById("team-toggle");
 const premiumToggle = document.getElementById("premium-toggle");
 const premiumProvider = document.getElementById("premium-provider");
+const modelToggle = document.getElementById("model-toggle");
+const modelSelect = document.getElementById("model-select");
 const statusLine = document.getElementById("status-line");
 
 function getAccessToken() {
@@ -200,6 +216,43 @@ promptEl.addEventListener("keydown", (e) => {
   }
 });
 
+modelToggle.addEventListener("change", () => {
+  modelSelect.disabled = !modelToggle.checked;
+  if (modelToggle.checked) premiumToggle.checked = false; // les deux modes sont exclusifs
+});
+
+premiumToggle.addEventListener("change", () => {
+  if (premiumToggle.checked) {
+    modelToggle.checked = false;
+    modelSelect.disabled = true;
+  }
+});
+
+async function loadModels() {
+  try {
+    const resp = await fetch("/models", { headers: authHeaders() });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const data = await resp.json();
+    modelSelect.innerHTML = "";
+    // Groupé par catégorie pour que ce soit lisible dans le menu
+    for (const cat of data.categories) {
+      const inCat = data.models.filter((m) => m.categories.includes(cat));
+      if (!inCat.length) continue;
+      const group = document.createElement("optgroup");
+      group.label = cat;
+      for (const m of inCat) {
+        const opt = document.createElement("option");
+        opt.value = `${m.provider}::${m.model_id}`;
+        opt.textContent = `${m.provider} / ${m.model_id}`;
+        group.appendChild(opt);
+      }
+      modelSelect.appendChild(group);
+    }
+  } catch (err) {
+    modelSelect.innerHTML = '<option value="">indisponible</option>';
+  }
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = promptEl.value.trim();
@@ -218,6 +271,10 @@ form.addEventListener("submit", async (e) => {
   if (!isTeam && premiumToggle.checked) {
     body.premium = true;
     body.premium_provider = premiumProvider.value;
+  } else if (!isTeam && modelToggle.checked && modelSelect.value) {
+    const [provider, modelId] = modelSelect.value.split("::");
+    body.provider = provider;
+    body.model_id = modelId;
   }
 
   try {
@@ -286,6 +343,7 @@ async function refreshStatus() {
   }
 }
 
+loadModels();
 refreshStatus();
 </script>
 </body>
