@@ -49,7 +49,9 @@ def fetch_transcript(video_id: str, languages: list[str] | None = None) -> str:
     """
     languages = languages or ["fr", "fr-FR", "en", "en-US"]
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        # 1.x : YouTubeTranscriptApi s'instancie, plus statique
+        api = YouTubeTranscriptApi()
+        transcript_list = api.list_transcripts(video_id)
         try:
             transcript = transcript_list.find_transcript(languages)
         except NoTranscriptFound:
@@ -64,4 +66,5 @@ def fetch_transcript(video_id: str, languages: list[str] | None = None) -> str:
     except Exception as e:
         raise YoutubeError(f"Impossible de récupérer le transcript : {e}")
 
-    return " ".join(entry["text"] for entry in entries if entry.get("text"))
+    # 1.x : les snippets sont des objets (entry.text) plus des dicts (entry["text"])
+    return " ".join(entry.text for entry in entries if entry.text)
