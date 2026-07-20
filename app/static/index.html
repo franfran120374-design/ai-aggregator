@@ -15,6 +15,10 @@
     --accent: #4f7cff;
     --user-bubble: #2a3550;
     --bot-bubble: #1f232c;
+    --green: #2d6a4f;
+    --green-text: #74c69d;
+    --yellow: #3d3000;
+    --yellow-text: #ffd166;
   }
   * { box-sizing: border-box; }
   body {
@@ -76,6 +80,153 @@
     margin-top: 6px;
   }
   .msg.user .meta { text-align: right; }
+
+  /* ── Panel d'analyse ────────────────────────────────────────────── */
+  #analyze-panel {
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    max-height: 420px;
+    overflow-y: auto;
+    transition: max-height 0.2s ease;
+  }
+  #analyze-panel.hidden {
+    display: none;
+  }
+  .analyze-inner {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 14px 20px;
+  }
+  .analyze-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .theme-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--accent);
+    color: white;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .analyze-meta-txt {
+    font-size: 11px;
+    color: var(--muted);
+    flex: 1;
+  }
+  .close-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+    height: auto;
+    line-height: 1;
+    border-radius: 4px;
+  }
+  .close-btn:hover { color: var(--text); background: var(--border); }
+
+  .diff-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 600px) {
+    .diff-columns { grid-template-columns: 1fr; }
+  }
+  .diff-col-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .diff-text {
+    font-family: "Menlo", "Consolas", monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    padding: 10px 12px;
+    border-radius: 8px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    min-height: 60px;
+  }
+  .diff-text.original {
+    background: #1a1d24;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .diff-text.optimized {
+    background: #0d2318;
+    border: 1px solid var(--green);
+    color: #c8f0d8;
+  }
+
+  .changes-list {
+    margin: 0 0 10px 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .changes-list li {
+    font-size: 12.5px;
+    color: var(--yellow-text);
+    background: var(--yellow);
+    padding: 5px 10px;
+    border-radius: 6px;
+    border-left: 3px solid var(--yellow-text);
+  }
+  .changes-list li::before {
+    content: "→ ";
+    opacity: 0.7;
+  }
+  .analyze-explanation {
+    font-size: 12.5px;
+    color: var(--muted);
+    font-style: italic;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border-left: 2px solid var(--border);
+  }
+  .analyze-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .btn-secondary {
+    background: #2a2e38;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0 16px;
+    height: 36px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .btn-secondary:hover { background: #343843; }
+  .btn-primary-sm {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0 16px;
+    height: 36px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-primary-sm:hover { background: #3d6aee; }
+
+  /* ── Composer ─────────────────────────────────────────────────────── */
   #composer {
     border-top: 1px solid var(--border);
     padding: 14px 20px;
@@ -114,6 +265,17 @@
     font-weight: 600;
   }
   button:disabled { opacity: 0.5; cursor: default; }
+  #analyze-btn {
+    background: #2a2e38;
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    padding: 0 14px;
+    white-space: nowrap;
+  }
+  #analyze-btn:hover:not(:disabled) { background: #343843; }
+  #analyze-btn.loading { color: var(--muted); }
+
   .typing { color: var(--muted); font-style: italic; }
   .options {
     max-width: 800px;
@@ -145,6 +307,33 @@
 
 <div id="messages"></div>
 
+<!-- Panel d'analyse prompt — caché par défaut -->
+<div id="analyze-panel" class="hidden">
+  <div class="analyze-inner">
+    <div class="analyze-header">
+      <span id="analyze-theme-badge" class="theme-badge"></span>
+      <span id="analyze-meta-txt" class="analyze-meta-txt"></span>
+      <button class="close-btn" id="analyze-close" title="Fermer">✕</button>
+    </div>
+    <div class="diff-columns">
+      <div>
+        <div class="diff-col-label">Prompt original</div>
+        <div id="diff-original" class="diff-text original"></div>
+      </div>
+      <div>
+        <div class="diff-col-label">✨ Prompt optimisé</div>
+        <div id="diff-optimized" class="diff-text optimized"></div>
+      </div>
+    </div>
+    <ul id="analyze-changes" class="changes-list"></ul>
+    <div id="analyze-explanation" class="analyze-explanation"></div>
+    <div class="analyze-actions">
+      <button class="btn-secondary" id="use-original-btn">Envoyer l'original</button>
+      <button class="btn-primary-sm" id="use-optimized-btn">Envoyer l'optimisé ✨</button>
+    </div>
+  </div>
+</div>
+
 <div id="composer">
   <div class="options">
     <label><input type="checkbox" id="team-toggle"> Mode équipe (Claude planifie et relit, un modèle gratuit exécute)</label>
@@ -160,21 +349,40 @@
   </div>
   <form id="chat-form">
     <textarea id="prompt" placeholder="Écris ton message… (Entrée pour envoyer, Maj+Entrée pour une nouvelle ligne)" rows="1"></textarea>
+    <button type="button" id="analyze-btn" title="Analyser et optimiser le prompt avant envoi">✨ Analyser</button>
     <button type="submit" id="send-btn">Envoyer</button>
   </form>
 </div>
 
 <script>
-const messagesEl = document.getElementById("messages");
-const form = document.getElementById("chat-form");
-const promptEl = document.getElementById("prompt");
-const sendBtn = document.getElementById("send-btn");
-const teamToggle = document.getElementById("team-toggle");
+const messagesEl   = document.getElementById("messages");
+const form         = document.getElementById("chat-form");
+const promptEl     = document.getElementById("prompt");
+const sendBtn      = document.getElementById("send-btn");
+const teamToggle   = document.getElementById("team-toggle");
 const premiumToggle = document.getElementById("premium-toggle");
 const premiumProvider = document.getElementById("premium-provider");
-const modelToggle = document.getElementById("model-toggle");
-const modelSelect = document.getElementById("model-select");
-const statusLine = document.getElementById("status-line");
+const modelToggle  = document.getElementById("model-toggle");
+const modelSelect  = document.getElementById("model-select");
+const statusLine   = document.getElementById("status-line");
+
+// Panel d'analyse
+const analyzePanel    = document.getElementById("analyze-panel");
+const analyzeBtn      = document.getElementById("analyze-btn");
+const analyzeClose    = document.getElementById("analyze-close");
+const analyzeBadge    = document.getElementById("analyze-theme-badge");
+const analyzeMetaTxt  = document.getElementById("analyze-meta-txt");
+const diffOriginal    = document.getElementById("diff-original");
+const diffOptimized   = document.getElementById("diff-optimized");
+const analyzeChanges  = document.getElementById("analyze-changes");
+const analyzeExplain  = document.getElementById("analyze-explanation");
+const useOriginalBtn  = document.getElementById("use-original-btn");
+const useOptimizedBtn = document.getElementById("use-optimized-btn");
+
+// Dernier résultat d'analyse (pour les boutons Utiliser)
+let lastAnalysis = null;
+
+// ── Auth ────────────────────────────────────────────────────────────────────
 
 function getAccessToken() {
   let token = localStorage.getItem("accessToken");
@@ -188,6 +396,8 @@ function getAccessToken() {
 function authHeaders(extra) {
   return Object.assign({ "X-Access-Token": getAccessToken() }, extra || {});
 }
+
+// ── Messages ────────────────────────────────────────────────────────────────
 
 function addMessage(role, text, meta) {
   const div = document.createElement("div");
@@ -204,6 +414,8 @@ function addMessage(role, text, meta) {
   return div;
 }
 
+// ── Textarea auto-resize ────────────────────────────────────────────────────
+
 promptEl.addEventListener("input", () => {
   promptEl.style.height = "auto";
   promptEl.style.height = Math.min(promptEl.scrollHeight, 160) + "px";
@@ -216,9 +428,11 @@ promptEl.addEventListener("keydown", (e) => {
   }
 });
 
+// ── Options mutuellement exclusives ─────────────────────────────────────────
+
 modelToggle.addEventListener("change", () => {
   modelSelect.disabled = !modelToggle.checked;
-  if (modelToggle.checked) premiumToggle.checked = false; // les deux modes sont exclusifs
+  if (modelToggle.checked) premiumToggle.checked = false;
 });
 
 premiumToggle.addEventListener("change", () => {
@@ -228,43 +442,116 @@ premiumToggle.addEventListener("change", () => {
   }
 });
 
-async function loadModels() {
-  try {
-    const resp = await fetch("/models", { headers: authHeaders() });
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
-    const data = await resp.json();
-    modelSelect.innerHTML = "";
-    // Groupé par catégorie pour que ce soit lisible dans le menu
-    for (const cat of data.categories) {
-      const inCat = data.models.filter((m) => m.categories.includes(cat));
-      if (!inCat.length) continue;
-      const group = document.createElement("optgroup");
-      group.label = cat;
-      for (const m of inCat) {
-        const opt = document.createElement("option");
-        opt.value = `${m.provider}::${m.model_id}`;
-        opt.textContent = `${m.provider} / ${m.model_id}`;
-        group.appendChild(opt);
-      }
-      modelSelect.appendChild(group);
-    }
-  } catch (err) {
-    modelSelect.innerHTML = '<option value="">indisponible</option>';
-  }
+// ── Panel analyse ───────────────────────────────────────────────────────────
+
+function showAnalysisPanel(data) {
+  lastAnalysis = data;
+
+  analyzeBadge.textContent = data.theme_label;
+  analyzeMetaTxt.textContent =
+    `${data.source_tier === "tier1" ? "Regex" : "Groq"} · confiance ${Math.round(data.confidence * 100)}%`;
+
+  diffOriginal.textContent  = data.original;
+  diffOptimized.textContent = data.optimized;
+
+  analyzeChanges.innerHTML = "";
+  (data.changes || []).forEach(c => {
+    const li = document.createElement("li");
+    li.textContent = c;
+    analyzeChanges.appendChild(li);
+  });
+
+  analyzeExplain.textContent = data.explanation || "";
+  analyzePanel.classList.remove("hidden");
+
+  // Scroll pour que le panel soit visible
+  analyzePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
+
+function hideAnalysisPanel() {
+  analyzePanel.classList.add("hidden");
+  lastAnalysis = null;
+}
+
+analyzeClose.addEventListener("click", hideAnalysisPanel);
+
+// Analyser le prompt courant
+analyzeBtn.addEventListener("click", async () => {
+  const text = promptEl.value.trim();
+  if (!text) return;
+
+  analyzeBtn.disabled = true;
+  analyzeBtn.textContent = "Analyse…";
+  analyzeBtn.classList.add("loading");
+
+  try {
+    const resp = await fetch("/prompt/analyze", {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ prompt: text }),
+    });
+
+    if (resp.status === 401) {
+      localStorage.removeItem("accessToken");
+      alert("Code d'accès invalide. Recharge la page.");
+      return;
+    }
+    if (!resp.ok) {
+      const err = await resp.json();
+      alert("Erreur analyse : " + (err.detail || resp.status));
+      return;
+    }
+
+    const data = await resp.json();
+    showAnalysisPanel(data);
+
+  } catch (err) {
+    alert("Impossible de contacter le serveur : " + err.message);
+  } finally {
+    analyzeBtn.disabled = false;
+    analyzeBtn.textContent = "✨ Analyser";
+    analyzeBtn.classList.remove("loading");
+  }
+});
+
+// Envoyer l'original — remet le texte d'origine dans le textarea et envoie
+useOriginalBtn.addEventListener("click", () => {
+  if (!lastAnalysis) return;
+  promptEl.value = lastAnalysis.original;
+  promptEl.style.height = "auto";
+  promptEl.style.height = Math.min(promptEl.scrollHeight, 160) + "px";
+  hideAnalysisPanel();
+  form.requestSubmit();
+});
+
+// Envoyer l'optimisé — injecte le prompt amélioré et envoie
+useOptimizedBtn.addEventListener("click", () => {
+  if (!lastAnalysis) return;
+  promptEl.value = lastAnalysis.optimized;
+  promptEl.style.height = "auto";
+  promptEl.style.height = Math.min(promptEl.scrollHeight, 160) + "px";
+  hideAnalysisPanel();
+  form.requestSubmit();
+});
+
+// ── Submit principal ─────────────────────────────────────────────────────────
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = promptEl.value.trim();
   if (!text) return;
 
+  hideAnalysisPanel();
   addMessage("user", text);
   promptEl.value = "";
   promptEl.style.height = "auto";
   sendBtn.disabled = true;
 
   const isTeam = teamToggle.checked;
-  const typingEl = addMessage("bot", isTeam ? "L'équipe travaille (plan → exécution → relecture)… ça peut prendre 1 à 3 minutes." : "…");
+  const typingEl = addMessage(
+    "bot",
+    isTeam ? "L'équipe travaille (plan → exécution → relecture)… ça peut prendre 1 à 3 minutes." : "…"
+  );
   typingEl.classList.add("typing");
 
   const body = { prompt: text };
@@ -321,6 +608,32 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
+// ── Modèles & statut ─────────────────────────────────────────────────────────
+
+async function loadModels() {
+  try {
+    const resp = await fetch("/models", { headers: authHeaders() });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const data = await resp.json();
+    modelSelect.innerHTML = "";
+    for (const cat of data.categories) {
+      const inCat = data.models.filter((m) => m.categories.includes(cat));
+      if (!inCat.length) continue;
+      const group = document.createElement("optgroup");
+      group.label = cat;
+      for (const m of inCat) {
+        const opt = document.createElement("option");
+        opt.value = `${m.provider}::${m.model_id}`;
+        opt.textContent = `${m.provider} / ${m.model_id}`;
+        group.appendChild(opt);
+      }
+      modelSelect.appendChild(group);
+    }
+  } catch (err) {
+    modelSelect.innerHTML = '<option value="">indisponible</option>';
+  }
+}
+
 async function refreshStatus() {
   try {
     const resp = await fetch("/status", { headers: authHeaders() });
@@ -330,7 +643,7 @@ async function refreshStatus() {
     }
     const data = await resp.json();
     const parts = Object.entries(data.quota)
-      .filter(([name, q]) => q.rpd_limit > 0)
+      .filter(([, q]) => q.rpd_limit > 0)
       .map(([name, q]) => {
         let s = `${name}: ${q.rpd_used}/${q.rpd_limit} req`;
         if (q.tpm_limit) s += `, ${q.tpm_used}/${q.tpm_limit} tok/min`;
