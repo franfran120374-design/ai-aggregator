@@ -3,4 +3,4 @@ uvicorn[standard]==0.49.0
 httpx==0.28.1
 pydantic==2.13.4
 python-dotenv==1.2.2
-youtube-transcript-api==0.6.3
+youtube-transcript-api==1.2.4
