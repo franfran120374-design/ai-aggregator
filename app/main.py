@@ -5,9 +5,10 @@ Lancer avec :
     uvicorn app.main:app --reload
 
 Endpoints :
-    POST /chat           -> {prompt: str}  =>  réponse + métadonnées de routage
-                             (provider + model_id optionnels pour forcer un modèle précis)
-    POST /youtube/fiche   -> {url: str}    =>  fiche de révision à partir d'une vidéo YouTube
+    POST /chat            -> {prompt: str}  =>  réponse + métadonnées de routage
+                              (provider + model_id optionnels pour forcer un modèle précis)
+    POST /prompt/analyze  -> {prompt: str}  =>  thème détecté + prompt optimisé + diff pédagogique
+    POST /youtube/fiche   -> {url: str}     =>  fiche de révision à partir d'une vidéo YouTube
     GET  /models          -> liste des modèles gratuits dispo, groupés par catégorie
     GET  /status          -> état des quotas par provider
 """
@@ -25,8 +26,9 @@ from app.budget import status as budget_status
 from app.config import MODELS, CATEGORIES, PROVIDERS, APP_ACCESS_TOKEN
 from app.youtube import extract_video_id, fetch_video_title, fetch_transcript, YoutubeError
 from app.prompts import build_revision_prompt
+from app.prompt_analyzer import analyze_prompt
 
-app = FastAPI(title="Agrégateur IA", version="0.3.0")
+app = FastAPI(title="Agrégateur IA", version="0.4.0")
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -40,11 +42,11 @@ def require_token(x_access_token: str | None = Header(None)) -> None:
 
 class ChatRequest(BaseModel):
     prompt: str
-    category: str | None = None  # permet de forcer une catégorie manuellement
-    provider: str | None = None  # force un provider gratuit précis (ex: "groq")
-    model_id: str | None = None  # force un modèle précis dans ce provider
-    premium: bool = False  # active explicitement Claude/GPT (payant)
-    premium_provider: str = "anthropic"  # "anthropic" ou "openai"
+    category: str | None = None
+    provider: str | None = None
+    model_id: str | None = None
+    premium: bool = False
+    premium_provider: str = "anthropic"
 
 
 class ChatResponse(BaseModel):
@@ -52,7 +54,7 @@ class ChatResponse(BaseModel):
     category: str
     provider: str
     model: str
-    cost_usd: float | None = None  # renseigné uniquement si premium=True
+    cost_usd: float | None = None
 
 
 @app.post("/chat", response_model=ChatResponse, dependencies=[Depends(require_token)])
@@ -93,10 +95,42 @@ async def chat(req: ChatRequest):
     return ChatResponse(response=result, category=category, provider=provider, model=model_id)
 
 
+# ── /prompt/analyze ───────────────────────────────────────────────────────────
+
+class PromptAnalyzeRequest(BaseModel):
+    prompt: str
+
+
+class PromptAnalyzeResponse(BaseModel):
+    theme: str
+    theme_label: str
+    confidence: float
+    source_tier: str
+    original: str
+    optimized: str
+    changes: list[str]
+    explanation: str
+
+
+@app.post("/prompt/analyze", response_model=PromptAnalyzeResponse, dependencies=[Depends(require_token)])
+async def prompt_analyze(req: PromptAnalyzeRequest):
+    """
+    Détecte le thème d'un prompt et propose une version optimisée avec
+    la liste des changements — affichée côté front avant envoi pour que
+    l'utilisateur apprenne à mieux formuler ses prompts.
+    """
+    if not req.prompt.strip():
+        raise HTTPException(400, "Le prompt est vide.")
+    result = await analyze_prompt(req.prompt.strip())
+    return PromptAnalyzeResponse(**result)
+
+
+# ── /youtube/fiche ────────────────────────────────────────────────────────────
+
 class YoutubeFicheRequest(BaseModel):
     url: str
-    provider: str | None = None  # force un provider gratuit précis (ex: "gemini")
-    model_id: str | None = None  # force un modèle précis (ex: "gemini-2.5-flash")
+    provider: str | None = None
+    model_id: str | None = None
 
 
 class YoutubeFicheResponse(BaseModel):
@@ -110,11 +144,6 @@ class YoutubeFicheResponse(BaseModel):
 
 @app.post("/youtube/fiche", response_model=YoutubeFicheResponse, dependencies=[Depends(require_token)])
 async def youtube_fiche(req: YoutubeFicheRequest):
-    """
-    Génère une fiche de révision (résumé, notions clés, Q/R, quiz) à partir
-    d'une vidéo YouTube. Catégorie forcée à 'contexte_long' — les transcripts
-    dépassent vite le TPM des petits modèles Groq.
-    """
     try:
         video_id = extract_video_id(req.url)
     except YoutubeError as e:
@@ -154,9 +183,10 @@ async def youtube_fiche(req: YoutubeFicheRequest):
     )
 
 
+# ── /models ───────────────────────────────────────────────────────────────────
+
 @app.get("/models", dependencies=[Depends(require_token)])
 async def list_models():
-    """Liste des modèles gratuits disponibles, pour construire un sélecteur côté client."""
     return {
         "categories": CATEGORIES,
         "models": [
@@ -172,28 +202,25 @@ async def list_models():
     }
 
 
+# ── /team ─────────────────────────────────────────────────────────────────────
+
 class TeamStep(BaseModel):
-    step: str  # "plan", "execution" ou "relecture"
+    step: str
     provider: str
     model: str
 
 
 class TeamResponse(BaseModel):
-    response: str  # version finale relue
+    response: str
     plan: str
     draft: str
     steps: list[TeamStep]
     category: str
-    cost_usd: float  # 0 si tout est passé par le CLI abonnement + les gratuits
+    cost_usd: float
 
 
 @app.post("/team", response_model=TeamResponse, dependencies=[Depends(require_token)])
 async def team(req: ChatRequest):
-    """
-    Mode équipe : Claude planifie, un modèle gratuit exécute, Claude relit.
-    Plus lent qu'un /chat simple (3 appels en série) mais nettement meilleur
-    sur les tâches complexes (code, documents structurés, analyses).
-    """
     if not req.prompt.strip():
         raise HTTPException(400, "Le prompt est vide.")
     try:
@@ -204,6 +231,8 @@ async def team(req: ChatRequest):
         raise HTTPException(402, str(e))
     return TeamResponse(**result)
 
+
+# ── /status & / ──────────────────────────────────────────────────────────────
 
 @app.get("/status", dependencies=[Depends(require_token)])
 async def status():
